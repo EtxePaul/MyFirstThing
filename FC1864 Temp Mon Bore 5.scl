@@ -1,0 +1,76 @@
+FUNCTION FC1860 : VOID
+    TITLE = 'Temp Monitor Bore 5'
+    VERSION : '1.0'
+    KNOW_HOW_PROTECT
+    NAME : 'Talens'
+    AUTHOR : 'Talens'
+
+LABEL
+NEXT_UPP;
+NEXT_LOW;
+END_LABEL
+
+VAR 
+CURRENT_JOURNAL     :INT;
+CURRENT_BORE        :INT;
+UPP_IND_ANGLE       :INT;
+LOW_IND_ANGLE       :INT;
+END_VAR
+        
+BEGIN 
+
+CURRENT_JOURNAL             := DINT_TO_INT(DB2501.LH21_SENT_DATA.CURRENT_JOURNAL);
+CURRENT_BORE                := DINT_TO_INT(DB2501.LH21_SENT_DATA.CURRENT_BORE);
+UPP_IND_ANGLE               := DB1754.UPPER_LIMIT.IND_ANGLE;
+LOW_IND_ANGLE               := DB1754.LOWER_LIMIT.IND_ANGLE;
+DB1754.PROCESS_DISTANCE     := (DB2501.LH21_SENT_DATA.PROCESSED_DISTANCE/1000.0);
+
+//----------------------------------------Upper Limits--------------------------------------------------//
+FOR UPP_IND_ANGLE:= 1 TO 20 DO
+  IF DB1754.PROCESS_DISTANCE < DB1304.Upper_Limit.Monitor_Per_Journal_Max[CURRENT_JOURNAL].ANGLE[UPP_IND_ANGLE]  THEN       
+    GOTO NEXT_UPP;
+  END_IF;
+END_FOR;
+
+NEXT_UPP:
+
+DB1754.UPPER_LIMIT.IND_ANGLE    :=UPP_IND_ANGLE-1;
+DB1754.UPPER_LIMIT.ANGLE_P0     :=DB1304.Upper_Limit.Monitor_Per_Journal_Max[CURRENT_JOURNAL].Angle[UPP_IND_ANGLE];
+DB1754.UPPER_LIMIT.ANGLE_P1     :=DB1304.Upper_Limit.Monitor_Per_Journal_Max[CURRENT_JOURNAL].Angle[UPP_IND_ANGLE+1];
+DB1754.UPPER_LIMIT.TEMP_P0      :=DB1304.Upper_Limit.Monitor_Per_Journal_Max[CURRENT_JOURNAL].Temp[UPP_IND_ANGLE];
+DB1754.UPPER_LIMIT.TEMP_P1      :=DB1304.Upper_Limit.Monitor_Per_Journal_Max[CURRENT_JOURNAL].Temp[UPP_IND_ANGLE+1];
+
+DB1754.UPPER_LIMIT.RATIO        :=(DB1754.PROCESS_DISTANCE-DB1754.UPPER_LIMIT.ANGLE_P0)/(DB1754.UPPER_LIMIT.ANGLE_P1-DB1754.UPPER_LIMIT.ANGLE_P0);
+DB1754.UPPER_LIMIT.CURRENT_TEMP :=DB1754.UPPER_LIMIT.TEMP_P0+(DB1754.UPPER_LIMIT.TEMP_P1-DB1754.UPPER_LIMIT.TEMP_P0)*DB1754.UPPER_LIMIT.RATIO;
+//------------------------------------------------------------------------------------------------------//
+
+//----------------------------------------Lower Limits--------------------------------------------------//
+FOR LOW_IND_ANGLE:= 1 TO 20 DO
+  IF DB1754.PROCESS_DISTANCE < DB1304.Lower_Limit.Monitor_Per_Journal_Min[CURRENT_JOURNAL].ANGLE[LOW_IND_ANGLE]  THEN       
+    GOTO NEXT_LOW;
+  END_IF;
+END_FOR;
+
+NEXT_LOW:
+  
+DB1754.LOWER_LIMIT.IND_ANGLE    :=LOW_IND_ANGLE-1;
+DB1754.LOWER_LIMIT.ANGLE_P0     :=DB1304.Lower_Limit.Monitor_Per_Journal_Min[CURRENT_JOURNAL].Angle[LOW_IND_ANGLE];
+DB1754.LOWER_LIMIT.ANGLE_P1     :=DB1304.Lower_Limit.Monitor_Per_Journal_Min[CURRENT_JOURNAL].Angle[LOW_IND_ANGLE+1];
+DB1754.LOWER_LIMIT.TEMP_P0      :=DB1304.Lower_Limit.Monitor_Per_Journal_Min[CURRENT_JOURNAL].Temp[LOW_IND_ANGLE];
+DB1754.LOWER_LIMIT.TEMP_P1      :=DB1304.Lower_Limit.Monitor_Per_Journal_Min[CURRENT_JOURNAL].Temp[LOW_IND_ANGLE+1];
+
+DB1754.LOWER_LIMIT.RATIO        :=(DB1754.PROCESS_DISTANCE-DB1754.LOWER_LIMIT.ANGLE_P0)/(DB1754.LOWER_LIMIT.ANGLE_P1-DB1754.LOWER_LIMIT.ANGLE_P0);
+DB1754.LOWER_LIMIT.CURRENT_TEMP :=DB1754.LOWER_LIMIT.TEMP_P0+(DB1754.LOWER_LIMIT.TEMP_P1-DB1754.LOWER_LIMIT.TEMP_P0)*DB1754.LOWER_LIMIT.RATIO;
+//------------------------------------------------------------------------------------------------------//
+
+//----------------------------------------- LIMITS -----------------------------------------------------//
+DB1304.Upper_Limit.Current_Max_Limit:=DB1754.UPPER_LIMIT.CURRENT_TEMP;
+DB1304.Lower_limit.Current_Min_Limit:=DB1754.LOWER_LIMIT.CURRENT_TEMP;
+//------------------------------------------------------------------------------------------------------//
+
+//----------------------------------------- LIMITS -----------------------------------------------------//
+DB1754.GRAPHIC.PYRO_MAX_LIMIT   :=DB1304.Upper_Limit.Current_Max_Limit;
+DB1754.GRAPHIC.PYRO_MIN_LIMIT   :=DB1304.Lower_limit.Current_Min_Limit;
+//------------------------------------------------------------------------------------------------------//  
+
+END_FUNCTION
